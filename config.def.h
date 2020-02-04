@@ -13,7 +13,7 @@ static const char col_gray2[]       = "#444444";
 static const char col_gray3[]       = "#bbbbbb";
 static const char col_gray4[]       = "#eeeeee";
 static const char col_cyan[]        = "#005577";
-static const char title_bg_dark[]   = "#303030";
+static const char title_bg_dark[]   = "#030303";
 static const char title_bg_light[]  = "#fdfdfd";
 static const int color_ptrs[][4]    = {
 	/*                              fg       bg       border   float   */
