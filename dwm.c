@@ -211,6 +211,7 @@ static void spawn(const Arg *arg);
 static void tag(const Arg *arg);
 static void tagmon(const Arg *arg);
 static void tile(Monitor *);
+static void nrowgrid(Monitor *);
 static void togglebar(const Arg *arg);
 static void togglefloating(const Arg *arg);
 static void toggletag(const Arg *arg);
@@ -1292,6 +1293,13 @@ resizeclient(Client *c, int x, int y, int w, int h)
 	c->oldw = c->w; c->w = wc.width = w;
 	c->oldh = c->h; c->h = wc.height = h;
 	wc.border_width = c->bw;
+	if (((nexttiled(c->mon->clients) == c && !nexttiled(c->next))
+		|| &monocle == c->mon->lt[c->mon->sellt]->arrange)
+		&& !c->isfullscreen && !c->isfloating) {
+			c->w = wc.width += c->bw * 2;
+			c->h = wc.height += c->bw * 2;
+			wc.border_width = 0;
+	}
 	XConfigureWindow(dpy, c->win, CWX|CWY|CWWidth|CWHeight|CWBorderWidth, &wc);
 	configure(c);
 	XSync(dpy, False);
@@ -1778,6 +1786,52 @@ tile(Monitor *m)
 			resize(c, m->wx + mw, m->wy + ty, m->ww - mw - (2*c->bw), h - (2*c->bw), 0);
 			ty += HEIGHT(c);
 		}
+}
+
+void
+nrowgrid(Monitor *m)
+{
+	unsigned int n, i = 0, ri = 0, ci = 0;      /* counters */
+	unsigned int cx, cy, cw, ch;                /* client geometry */
+	unsigned int uw = 0, uh = 0, uc = 0;        /* utilization trackers */
+	unsigned int cols, rows = m->nmaster + 1;
+	Client *c;
+
+	for (n = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next), n++);
+	if (n == 0)
+		return;
+
+	/* never allow empty rows */
+	if (n < rows)
+		rows = n;
+
+	/* define first row */
+	cols = n / rows;
+	uc = cols;
+	cy = m->wy;
+	ch = m->wh / rows;
+	uh = ch;
+
+	for (c = nexttiled(m->clients); c; c = nexttiled(c->next), i++, ci++) {
+		if (ci == cols) {
+			uw = 0;
+			ci = 0;
+			ri++;
+
+			/* next row */
+			cols = (n - uc) / (rows - ri);
+			uc += cols;
+			cy = m->wy + uh;
+			ch = (m->wh - uh) / (rows - ri);
+			uh += ch;
+		}
+
+		cx = m->wx + uw;
+		cw = (m->ww - uw) / (cols - ci);
+		uw += cw;
+
+		resize(c, cx, cy, cw - (2*c->bw), ch - (2*c->bw), 0);
+	}
 }
 
 void
