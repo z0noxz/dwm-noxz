@@ -50,16 +50,16 @@ static const Rule rules[] = {
 };
 
 /* layout(s) */
-static const float mfact     = 0.55; /* factor of master area size [0.05..0.95] */
-static const int nmaster     = 0;    /* number of clients in master area */
-static const int resizehints = 0;    /* 1 means respect size hints in tiled resizals */
+static const float mfact            = 0.55; /* factor of master area size [0.05..0.95] */
+static const int nmaster            = 0;    /* number of clients in master area */
+static const int resizehints        = 0;    /* 1 means respect size hints in tiled resizals */
 
 static const Layout layouts[] = {
 	/* symbol     arrange function */
-	{ "###",      nrowgrid },/* first entry is default */
-	{ "[]=",      tile },
-	{ "><>",      NULL },    /* no layout function means floating behavior */
-	{ "[M]",      monocle },
+	[LayoutGrid]                = { "###",      nrowgrid }, /* default */
+	[LayoutTiled]               = { "[]=",      tile },
+	[LayoutMonocle]             = { "[M]",      monocle },
+	[LayoutFloating]            = { "><>",      NULL },    /* no layout function means floating behavior */
 };
 
 /* key definitions */
@@ -133,3 +133,45 @@ static Button buttons[] = {
 	{ ClkTagBar,            MODKEY,         Button3,        toggletag,      {0} },
 };
 
+static const char *dwmfifo = "/tmp/dwm.fifo";
+static Command commands[] = {
+	{ "spawn ...",          spawn,          {.i = DispCmdLine} },
+	{ "quit",               quit,           {0} },
+	{ "toggle bar",         togglebar,      {0} },
+	{ "focus stack +",      focusstack,     {.i = +1} },
+	{ "focus stack -",      focusstack,     {.i = -1} },
+	{ "move stack +",       movestack,      {.i = +1} },
+	{ "move stack -",       movestack,      {.i = -1} },
+	{ "rotate stack +",     rotatestack,    {.i = +1} },
+	{ "rotate stack -",     rotatestack,    {.i = -1} },
+	{ "inc nmaster +",      incnmaster,     {.i = +1} },
+	{ "inc nmaster -",      incnmaster,     {.i = -1} },
+	{ "set mfact +",        setmfact,       {.f = +0.05} },
+	{ "set mfact -",        setmfact,       {.f = -0.05} },
+	{ "zoom",               zoom,           {0} },
+	{ "kill client",        killclient,     {0} },
+	
+	{ "set layout grid",    setlayout,      {.v = &layouts[LayoutGrid]} },
+	{ "set layout tiled",   setlayout,      {.v = &layouts[LayoutTiled]} },
+	{ "set layout float",   setlayout,      {.v = &layouts[LayoutFloating]} },
+	{ "set layout monocle", setlayout,      {.v = &layouts[LayoutMonocle]} },
+	{ "toggle monocle",     togglelayout,   {.v = &layouts[LayoutMonocle]} },
+	{ "toggle layout",      setlayout,      {0} },
+	{ "rotate layout +",    rotatelayout,   {.i = +1} },
+	{ "rotate layout -",    rotatelayout,   {.i = -1} },
+	
+	{ "toggle floating",    togglefloating, {0} },
+	{ "toggle sticky",      togglesticky,   {0} },
+	{ "focus mon +",        focusmon,       {.i = +1} },
+	{ "focus mon -",        focusmon,       {.i = -1} },
+	{ "tag mon +",          tagmon,         {.i = +1} },
+	{ "tag mon -",          tagmon,         {.i = -1} },
+	
+	{ "view",               view,           {0} },
+	{ "view all",           view,           {.ui = ~0} },
+	{ "tag all",            tag,            {.ui = ~0} },
+	{ "view ...",           view,           {.i = DispUi} },
+	{ "toggle view ...",    toggleview,     {.i = DispUi} },
+	{ "tag ...",            tag,            {.i = DispUi} },
+	{ "toggle tag ...",     toggletag,      {.i = DispUi} },
+};
