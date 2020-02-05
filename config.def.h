@@ -25,7 +25,11 @@ static const int color_ptrs[][4]    = {
 	[SchemeTagsSel]             = { 6,       5,       5,       -1      },
 	[SchemeTitleNorm]           = { 6,       -1,      -1,      -1      },
 	[SchemeTitleSel]            = { 6,       -1,      -1,      -1      },
-	[SchemeStatus]              = { 2,       0,       0,       -1      },
+
+	[SchemeStatusNorm]          = { 2,       0,       -1,      -1      },
+	[SchemeStatusAct]           = { 6,       0,       -1,      -1      },
+	[SchemeStatusDist]          = { 11,      0,       -1,      -1      },
+	[SchemeStatusNoti]          = { 0,       6,       -1,      -1      },
 };
 static char colors[][4][8]          = {
 	/*                              fg       bg       border   float   */
@@ -35,7 +39,11 @@ static char colors[][4][8]          = {
 	[SchemeTagsSel]             = { COL_DEF, COL_DEF, COL_DEF, COL_DEF },
 	[SchemeTitleNorm]           = { COL_DEF, COL_DEF, COL_DEF, COL_DEF },
 	[SchemeTitleSel]            = { COL_DEF, COL_DEF, COL_DEF, COL_DEF },
-	[SchemeStatus]              = { COL_DEF, COL_DEF, COL_DEF, COL_DEF },
+
+	[SchemeStatusNorm]          = { COL_DEF, COL_DEF, COL_DEF, COL_DEF },
+	[SchemeStatusAct]           = { COL_DEF, COL_DEF, COL_DEF, COL_DEF },
+	[SchemeStatusDist]          = { COL_DEF, COL_DEF, COL_DEF, COL_DEF },
+	[SchemeStatusNoti]          = { COL_DEF, COL_DEF, COL_DEF, COL_DEF },
 };
 
 /* tagging */
