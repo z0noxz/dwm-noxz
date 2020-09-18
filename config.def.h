@@ -13,16 +13,16 @@ static const char *fonts[]          = { "dnoxz_numerics:pixelsize=12:autohint=fa
 static const char title_bg_dark[]   = "#030303";
 static const char title_bg_light[]  = "#fdfdfd";
 static const int color_ptrs[][4]    = {
-	/*                              fg       bg       border   float   */
-	[SchemeNorm]                   = { -1,      -1,      5,       5       },
-	[SchemeSel]                    = { -1,      -1,      11,      9       },
+	/*                              fg          bg       border   float   */
+	[SchemeNorm]                   = { -1,      -1,      5,       -1      },
+	[SchemeSel]                    = { -1,      -1,      6,       13      },
 	[SchemeTagsNorm]               = { 2,       0,       0,       -1      },
-	[SchemeTagsSel]                = { 6,       5,       5,       -1      },
+	[SchemeTagsSel]                = { 5,       6,       6,       -1      },
 	[SchemeTitleNorm]              = { 6,       -1,      -1,      -1      },
 	[SchemeTitleSel]               = { 6,       -1,      -1,      -1      },
 
 	[SchemeStatusNorm]             = { 6,       -1,      -1,      -1      },
-	[SchemeStatusAct]              = { 6,       5,       -1,      -1      },
+	[SchemeStatusAct]              = { 5,       6,       -1,      -1      },
 	[SchemeStatusDist]             = { 11,      0,       -1,      -1      },
 	[SchemeStatusNoti]             = { 0,       6,       -1,      -1      },
 };
@@ -50,7 +50,7 @@ static const Rule rules[] = {
 	 * WM_NAME(STRING) = title
 	 */
 	/* class            instance    title   tags mask   isfloating   monitor */
-	{ "Gimp",           NULL,       NULL,   0,          1,           -1 },
+	{ "Gimp",           NULL,       NULL,   0,          0,           -1 },
 	{ "tabbed",         "vimb",     NULL,   1 << 1,     0,           -1 },
 	{ "Brave-browser",  NULL,       NULL,   1 << 1,     0,           -1 },
 };
