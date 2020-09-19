@@ -15,7 +15,7 @@ static const char title_bg_light[]  = "#fdfdfd";
 static const int color_ptrs[][4]    = {
 	/*                              fg          bg       border   float   */
 	[SchemeNorm]                   = { -1,      -1,      5,       -1      },
-	[SchemeSel]                    = { -1,      -1,      6,       13      },
+	[SchemeSel]                    = { -1,      -1,      6,       1       },
 	[SchemeTagsNorm]               = { 2,       0,       0,       -1      },
 	[SchemeTagsSel]                = { 5,       6,       6,       -1      },
 	[SchemeTitleNorm]              = { 6,       -1,      -1,      -1      },
