@@ -38,6 +38,7 @@
 #include <X11/Xlib.h>
 #include <X11/Xproto.h>
 #include <X11/Xutil.h>
+#include <X11/Xresource.h>
 #ifdef XINERAMA
 #include <X11/extensions/Xinerama.h>
 #endif /* XINERAMA */
@@ -141,6 +142,19 @@ typedef struct {
 	int monitor;
 } Rule;
 
+/* Xresources preferences */
+enum resource_type {
+	STRING = 0,
+	INTEGER = 1,
+	FLOAT = 2
+};
+
+typedef struct {
+	char *name;
+	enum resource_type type;
+	void *dst;
+} ResourcePref;
+
 typedef struct {
 	const char *name;
 	void (*func)(const Arg *arg);
@@ -187,6 +201,7 @@ static int gettextprop(Window w, Atom atom, char *text, unsigned int size);
 static void grabbuttons(Client *c, int focused);
 static void incnmaster(const Arg *arg);
 static void killclient(const Arg *arg);
+static void load_xresources(void);
 static void manage(Window w, XWindowAttributes *wa);
 static void maprequest(XEvent *e);
 static void monocle(Monitor *m);
@@ -199,6 +214,7 @@ static Monitor *recttomon(int x, int y, int w, int h);
 static void resize(Client *c, int x, int y, int w, int h, int interact);
 static void resizeclient(Client *c, int x, int y, int w, int h);
 static void resizemouse(const Arg *arg);
+static void resource_load(XrmDatabase db, char *name, enum resource_type rtype, void *dst);
 static void restack(Monitor *m);
 static void movestack(const Arg *arg);
 static void rotatestack(const Arg *arg);
@@ -213,8 +229,6 @@ static void setlayout(const Arg *arg);
 static void togglelayout(const Arg *arg);
 static void rotatelayout(const Arg *arg);
 static void setmfact(const Arg *arg);
-static void get_vt_colors(void);
-static int get_luminance(char *rgb);
 static void setup(void);
 static void seturgent(Client *c, int urg);
 static void showhide(Client *c);
@@ -1801,72 +1815,6 @@ setmfact(const Arg *arg)
 }
 
 void
-get_vt_colors(void)
-{
-	char *cfs[3] = {
-		"/sys/module/vt/parameters/default_red",
-		"/sys/module/vt/parameters/default_grn",
-		"/sys/module/vt/parameters/default_blu",
-	};
-	char vtcs[16][8];
-	char tk[] = ",";
-	char cl[64];
-	char *tp = NULL;
-	FILE *fp;
-	size_t r;
-	int i, c, n;
-
-	for (i = 0; i < 16; i++)
-		strcpy(vtcs[i], "#000000");
-
-	for (i = 0, r = 0; i < 3; i++) {
-		if ((fp = fopen(cfs[i], "r")) == NULL)
-			continue;
-		while ((cl[r] = fgetc(fp)) != EOF && cl[r] != '\n')
-			r++;
-		cl[r] = '\0';
-		for (c = 0, tp = cl, n = 0; c < 16; c++, tp++) {
-			if ((r = strcspn(tp, tk)) == -1)
-				break;
-			for (n = 0; r && *tp >= 48 && *tp < 58; r--, tp++)
-				n = n * 10 - 48 + *tp;
-			vtcs[c][i * 2 + 1] = n / 16 < 10 ? n / 16 + 48 : n / 16 + 87;
-			vtcs[c][i * 2 + 2] = n % 16 < 10 ? n % 16 + 48 : n % 16 + 87;
-		}
-		fclose(fp);
-	}
-	for (i = 0; i < LENGTH(colors); i++) {
-		for (c = 0; c < 4; c++) {
-			n = color_ptrs[i][c];
-			if (n > -1 && strlen(colors[i][c]) >= strlen(vtcs[n]))
-				memcpy(colors[i][c], vtcs[n], 7);
-		}
-	}
-}
-
-int get_luminance(char *r)
-{
-	char *c = r;
-	int n[3] = {0};
-	int i = 0;
-
-	while (*c) {
-		if (*c >= 48 && *c < 58)
-			n[i / 2] = n[i / 2] * 16 - 48 + *c;
-		else if (*c >= 65 && *c < 71)
-			n[i / 2] = n[i / 2] * 16 - 55 + *c;
-		else if (*c >= 97 && *c < 103)
-			n[i / 2] = n[i / 2] * 16 - 87 + *c;
-		else
-			i--;
-		i++;
-		c++;
-	}
-
-	return (0.299 * n[0] + 0.587 * n[1] + 0.114 * n[2]) / 2.55;
-}
-
-void
 setup(void)
 {
 	int i;
@@ -1907,14 +1855,6 @@ setup(void)
 	cursor[CurResize] = drw_cur_create(drw, XC_sizing);
 	cursor[CurMove] = drw_cur_create(drw, XC_fleur);
 	/* init appearance */
-	get_vt_colors();
-	if (get_luminance(colors[SchemeTagsNorm][ColBg]) > 50) {
-		strcpy(colors[SchemeTitleNorm][ColBg], title_bg_light);
-		strcpy(colors[SchemeTitleSel][ColBg], title_bg_light);
-	} else {
-		strcpy(colors[SchemeTitleNorm][ColBg], title_bg_dark);
-		strcpy(colors[SchemeTitleSel][ColBg], title_bg_dark);
-	}
 	scheme = ecalloc(LENGTH(colors), sizeof(Clr *));
 	for (i = 0; i < LENGTH(colors); i++)
 		scheme[i] = drw_scm_create(drw, colors[i], 4);
@@ -2584,6 +2524,60 @@ zoom(const Arg *arg)
 	pop(c);
 }
 
+void
+resource_load(XrmDatabase db, char *name, enum resource_type rtype, void *dst)
+{
+	char *sdst = NULL;
+	int *idst = NULL;
+	float *fdst = NULL;
+
+	sdst = dst;
+	idst = dst;
+	fdst = dst;
+
+	char fullname[256];
+	char *type;
+	XrmValue ret;
+
+	snprintf(fullname, sizeof(fullname), "%s.%s", "dwm", name);
+	fullname[sizeof(fullname) - 1] = '\0';
+
+	XrmGetResource(db, fullname, "*", &type, &ret);
+	if (!(ret.addr == NULL || strncmp("String", type, 64)))
+	{
+		switch (rtype) {
+		case STRING:
+			strcpy(sdst, ret.addr);
+			break;
+		case INTEGER:
+			*idst = strtoul(ret.addr, NULL, 10);
+			break;
+		case FLOAT:
+			*fdst = strtof(ret.addr, NULL);
+			break;
+		}
+	}
+}
+
+void
+load_xresources(void)
+{
+	Display *display;
+	char *resm;
+	XrmDatabase db;
+	ResourcePref *p;
+
+	display = XOpenDisplay(NULL);
+	resm = XResourceManagerString(display);
+	if (!resm)
+		return;
+
+	db = XrmGetStringDatabase(resm);
+	for (p = resources; p < resources + LENGTH(resources); p++)
+		resource_load(db, p->name, p->type, p->dst);
+	XCloseDisplay(display);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -2596,6 +2590,8 @@ main(int argc, char *argv[])
 	if (!(dpy = XOpenDisplay(NULL)))
 		die("dwm: cannot open display");
 	checkotherwm();
+	XrmInitialize();
+	load_xresources();
 	setup();
 #ifdef __OpenBSD__
 	if (pledge("stdio rpath proc exec", NULL) == -1)
