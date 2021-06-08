@@ -5,6 +5,7 @@
 /* appearance */
 static unsigned int borderpx    = 2;        /* border pixel of windows */
 static unsigned int snap        = 32;       /* snap pixel */
+static unsigned int gap         = 10;       /* inner and outer gap between windows */
 static int showbar              = 1;        /* 0 means no bar */
 static int topbar               = 1;        /* 0 means bottom bar */
 static int viewontag            = 1;
@@ -111,6 +112,7 @@ ResourcePref resources[] = {
 	{ "font",                       STRING,     &font },
 	{ "borderpx",                   INTEGER,    &borderpx },
 	{ "snap",                       INTEGER,    &snap },
+	{ "gap",                        INTEGER,    &gap },
 	{ "showbar",                    INTEGER,    &showbar },
 	{ "topbar",                     INTEGER,    &topbar },
 	{ "viewontag",                  INTEGER,    &viewontag },
@@ -146,6 +148,10 @@ static Command commands[] = {
 	{ "toggle layout",      setlayout,      {0} },
 	{ "rotate layout +",    rotatelayout,   {.i = +1} },
 	{ "rotate layout -",    rotatelayout,   {.i = -1} },
+
+	{ "toggle gaps",        togglegaps,     {0} },
+	{ "inc gaps +",         incgaps,        {.i = +1} },
+	{ "inc gaps -",         incgaps,        {.i = -1} },
 
 	{ "toggle floating",    togglefloating, {0} },
 	{ "toggle sticky",      togglesticky,   {0} },

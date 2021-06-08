@@ -119,6 +119,7 @@ struct Monitor {
 	int by;               /* bar geometry */
 	int mx, my, mw, mh;   /* screen size */
 	int wx, wy, ww, wh;   /* window area  */
+	int gap;
 	unsigned int seltags;
 	unsigned int sellt;
 	unsigned int tagset[2];
@@ -199,6 +200,7 @@ static int getrootptr(int *x, int *y);
 static long getstate(Window w);
 static int gettextprop(Window w, Atom atom, char *text, unsigned int size);
 static void grabbuttons(Client *c, int focused);
+static void incgaps(const Arg *arg);
 static void incnmaster(const Arg *arg);
 static void killclient(const Arg *arg);
 static void load_xresources(void);
@@ -240,6 +242,7 @@ static void tile(Monitor *);
 static void nrowgrid(Monitor *);
 static void togglebar(const Arg *arg);
 static void togglefloating(const Arg *arg);
+static void togglegaps(const Arg *arg);
 static void togglesticky(const Arg *arg);
 static void toggletag(const Arg *arg);
 static void toggleview(const Arg *arg);
@@ -305,6 +308,7 @@ struct Pertag {
 	unsigned int sellts[LENGTH(tags) + 1]; /* selected layouts */
 	const Layout *ltidxs[LENGTH(tags) + 1][2]; /* matrix of tags and layouts indexes  */
 	int showbars[LENGTH(tags) + 1]; /* display bar for the current tag */
+	int enablegaps[LENGTH(tags) + 1];
 };
 
 /* compile-time check if all tags fit into an unsigned int bit array. */
@@ -680,6 +684,7 @@ createmon(void)
 	m->nmaster = nmaster;
 	m->showbar = showbar;
 	m->topbar = topbar;
+	m->gap = gap;
 	m->lt[0] = &layouts[0];
 	m->lt[1] = &layouts[1 % LENGTH(layouts)];
 	strncpy(m->ltsymbol, layouts[0].symbol, sizeof m->ltsymbol);
@@ -692,6 +697,7 @@ createmon(void)
 		m->pertag->ltidxs[i][0] = m->lt[0];
 		m->pertag->ltidxs[i][1] = m->lt[1];
 		m->pertag->sellts[i] = m->sellt;
+		m->pertag->enablegaps[i] = 1;
 
 		m->pertag->showbars[i] = m->showbar;
 	}
@@ -1136,6 +1142,13 @@ grabbuttons(Client *c, int focused)
 						c->win, False, BUTTONMASK,
 						GrabModeAsync, GrabModeSync, None, None);
 	}
+}
+
+void
+incgaps(const Arg *arg)
+{
+	selmon->gap = MAX(selmon->gap + arg->i, 0);
+	arrange(selmon);
 }
 
 void
@@ -1993,8 +2006,9 @@ tile(Monitor *m)
 void
 nrowgrid(Monitor *m)
 {
-	unsigned int n, i = 0, ri = 0, ci = 0;      /* counters */
+	unsigned int n, ri = 0, ci = 0;             /* counters */
 	unsigned int cx, cy, cw, ch;                /* client geometry */
+	unsigned int oh, ov, ih, iv;                /* gaps */
 	unsigned int uw = 0, uh = 0, uc = 0;        /* utilization trackers */
 	unsigned int cols, rows = m->nmaster + 1;
 	Client *c;
@@ -2003,18 +2017,28 @@ nrowgrid(Monitor *m)
 	if (n == 0)
 		return;
 
+	/* get gaps */
+	if (selmon->pertag->enablegaps[selmon->pertag->curtag] && n > 1) {
+		oh = m->gap;    /* outer horizontal */
+		ov = m->gap;    /* outer vertical */
+		ih = m->gap;    /* inner horizontal */
+		iv = m->gap;    /* inner vertical */
+	} else { oh = ov = ih = iv = 0; }
+
 	/* never allow empty rows */
 	if (n < rows)
 		rows = n;
 
+	/* TODO :: check if gaps are to large */
+
 	/* define first row */
 	cols = n / rows;
 	uc = cols;
-	cy = m->wy;
-	ch = m->wh / rows;
-	uh = ch;
+	cy = m->wy + oh;
+	ch = (m->wh - 2*oh - (ih * (rows - 1))) / rows;
+	uh = ch + ih;
 
-	for (c = nexttiled(m->clients); c; c = nexttiled(c->next), i++, ci++) {
+	for (c = nexttiled(m->clients); c; c = nexttiled(c->next), ci++) {
 		if (ci == cols) {
 			uw = 0;
 			ci = 0;
@@ -2023,14 +2047,14 @@ nrowgrid(Monitor *m)
 			/* next row */
 			cols = (n - uc) / (rows - ri);
 			uc += cols;
-			cy = m->wy + uh;
-			ch = (m->wh - uh) / (rows - ri);
-			uh += ch;
+			cy = m->wy + uh + oh;
+			ch = ((m->wh - 2*oh) - uh - (ih * (rows - ri - 1))) / (rows - ri);
+			uh += ch + ih;
 		}
 
-		cx = m->wx + uw;
-		cw = (m->ww - uw) / (cols - ci);
-		uw += cw;
+		cx = m->wx + uw + ov;
+		cw = ((m->ww - 2*ov) - uw - (iv * (cols - ci - 1))) / (cols - ci);
+		uw += cw + iv;
 
 		resize(c, cx, cy, cw - (2*c->bw), ch - (2*c->bw), 0);
 	}
@@ -2060,6 +2084,13 @@ togglefloating(const Arg *arg)
 	if (selmon->sel->isfloating)
 		resize(selmon->sel, selmon->sel->x, selmon->sel->y,
 			selmon->sel->w, selmon->sel->h, 0);
+	arrange(selmon);
+}
+
+void
+togglegaps(const Arg *arg)
+{
+	selmon->pertag->enablegaps[selmon->pertag->curtag] = !selmon->pertag->enablegaps[selmon->pertag->curtag];
 	arrange(selmon);
 }
 
