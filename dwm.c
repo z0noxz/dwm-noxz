@@ -309,6 +309,7 @@ struct Pertag {
 	const Layout *ltidxs[LENGTH(tags) + 1][2]; /* matrix of tags and layouts indexes  */
 	int showbars[LENGTH(tags) + 1]; /* display bar for the current tag */
 	int enablegaps[LENGTH(tags) + 1];
+	int gap[LENGTH(tags) + 1];
 };
 
 /* compile-time check if all tags fit into an unsigned int bit array. */
@@ -698,6 +699,7 @@ createmon(void)
 		m->pertag->ltidxs[i][1] = m->lt[1];
 		m->pertag->sellts[i] = m->sellt;
 		m->pertag->enablegaps[i] = 1;
+		m->pertag->gap[i] = gap;
 
 		m->pertag->showbars[i] = m->showbar;
 	}
@@ -1147,7 +1149,7 @@ grabbuttons(Client *c, int focused)
 void
 incgaps(const Arg *arg)
 {
-	selmon->gap = MAX(selmon->gap + arg->i, 0);
+	selmon->gap = selmon->pertag->gap[selmon->pertag->curtag] = MAX(selmon->gap + arg->i, 0);
 	arrange(selmon);
 }
 
@@ -2017,6 +2019,17 @@ nrowgrid(Monitor *m)
 	if (n == 0)
 		return;
 
+	/* calculate rows and cols, never allow empty rows */
+	if (n < rows)
+		rows = n;
+	cols = n / rows;
+
+	/* check if gaps are to large */
+	if (m->gap > m->wh / (rows + 1))
+		m->gap = m->wh / (rows + 1);
+	if (m->gap > m->ww / (cols + 1))
+		m->gap = m->ww / (cols + 1);
+
 	/* get gaps */
 	if (selmon->pertag->enablegaps[selmon->pertag->curtag] && n > 1) {
 		oh = m->gap;    /* outer horizontal */
@@ -2025,14 +2038,7 @@ nrowgrid(Monitor *m)
 		iv = m->gap;    /* inner vertical */
 	} else { oh = ov = ih = iv = 0; }
 
-	/* never allow empty rows */
-	if (n < rows)
-		rows = n;
-
-	/* TODO :: check if gaps are to large */
-
 	/* define first row */
-	cols = n / rows;
 	uc = cols;
 	cy = m->wy + oh;
 	ch = (m->wh - 2*oh - (ih * (rows - 1))) / rows;
@@ -2138,6 +2144,7 @@ toggleview(const Arg *arg)
 		selmon->tagset[selmon->seltags] = newtagset;
 
 		/* apply settings for this view */
+		selmon->gap = selmon->pertag->gap[selmon->pertag->curtag];
 		selmon->nmaster = selmon->pertag->nmasters[selmon->pertag->curtag];
 		selmon->mfact = selmon->pertag->mfacts[selmon->pertag->curtag];
 		selmon->sellt = selmon->pertag->sellts[selmon->pertag->curtag];
@@ -2463,6 +2470,7 @@ view(const Arg *arg)
 		selmon->pertag->curtag = tmptag;
 	}
 
+	selmon->gap = selmon->pertag->gap[selmon->pertag->curtag];
 	selmon->nmaster = selmon->pertag->nmasters[selmon->pertag->curtag];
 	selmon->mfact = selmon->pertag->mfacts[selmon->pertag->curtag];
 	selmon->sellt = selmon->pertag->sellts[selmon->pertag->curtag];
