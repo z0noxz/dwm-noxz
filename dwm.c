@@ -196,6 +196,7 @@ static void focusin(XEvent *e);
 static void focusmon(const Arg *arg);
 static void focusstack(const Arg *arg);
 static Atom getatomprop(Client *c, Atom prop);
+static void getgap(Monitor *m, unsigned int n, unsigned int *g, unsigned int r, unsigned int c);
 static int getrootptr(int *x, int *y);
 static long getstate(Window w);
 static int gettextprop(Window w, Atom atom, char *text, unsigned int size);
@@ -1156,7 +1157,7 @@ incgaps(const Arg *arg)
 void
 incnmaster(const Arg *arg)
 {
-	selmon->nmaster = selmon->pertag->nmasters[selmon->pertag->curtag] = MAX(selmon->nmaster + arg->i, 0);
+	selmon->nmaster = selmon->pertag->nmasters[selmon->pertag->curtag] = MAX(selmon->nmaster + arg->i, 1);
 	arrange(selmon);
 }
 
@@ -1978,41 +1979,70 @@ tagmon(const Arg *arg)
 }
 
 void
+getgap(Monitor *m, unsigned int n, unsigned int *g, unsigned int r, unsigned int c)
+{
+	/* check if gaps are to large */
+	if (m->gap > m->wh / (r + 1))
+		m->gap = m->wh / (r + 1);
+	if (m->gap > m->ww / (c + 1))
+		m->gap = m->ww / (c + 1);
+
+	/* set gap if used */
+	*g = (m->pertag->enablegaps[m->pertag->curtag] && n > 1) ? m->gap : 0;
+}
+
+void
 tile(Monitor *m)
 {
-	unsigned int i, n, h, mw, my, ty;
+	unsigned int n, ri = 0, ci = 0;             /* counters */
+	unsigned int cx, cy, cw, ch, cg;            /* client geometry */
+	unsigned int uw = 0, uh = 0;                /* utilization trackers */
+	unsigned int cols, rows, mw = m->ww;
 	Client *c;
 
 	for (n = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next), n++);
 	if (n == 0)
 		return;
 
-	if (n > m->nmaster)
-		mw = m->nmaster ? m->ww * m->mfact : 0;
-	else
-		mw = m->ww;
-	for (i = my = ty = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next), i++)
-		if (i < m->nmaster) {
-			h = (m->wh - my) / (MIN(n, m->nmaster) - i);
-			resize(c, m->wx, m->wy + my, mw - (2*c->bw), h - (2*c->bw), 0);
-			if (my + HEIGHT(c) < m->wh)
-				my += HEIGHT(c);
-		} else {
-			h = (m->wh - ty) / (n - i);
-			resize(c, m->wx + mw, m->wy + ty, m->ww - mw - (2*c->bw), h - (2*c->bw), 0);
-			if (ty + HEIGHT(c) < m->wh)
-				ty += HEIGHT(c);
+	cols = m->nmaster = MAX(MIN(m->nmaster, n), 1);
+	rows = n - cols;
+
+	getgap(m, n, &cg, rows, MAX(3, cols));
+
+	if (n > cols)
+		mw = cols ? mw * (double)MAX(2, cols) / (double)MAX(3, cols + 1) : 0;
+
+	/* define initials */
+	cy = m->wy + cg;
+	ch = m->wh - 2*cg;
+	uw = cx = cw = 0;
+
+	for (c = nexttiled(m->clients); c; c = nexttiled(c->next), ci++) {
+		if (ci == cols) {
+			cx = m->wx + uw + cg;
+			cw = m->ww - cx - cg;
 		}
+		if (ci < cols) {
+			cx = m->wx + uw + cg;
+			cw = ((mw - 2*cg) - uw - (cg * (cols - ci - 1))) / (cols - ci);
+			uw += cw + cg;
+		} else {
+			cy = m->wy + uh + cg;
+			ch = ((m->wh - 2*cg) - uh - (cg * (rows - ri - 1))) / (rows - ri);
+			uh += ch + cg;
+			ri++;
+		}
+		resize(c, cx, cy, cw - (2*c->bw), ch - (2*c->bw), 0);
+	}
 }
 
 void
 nrowgrid(Monitor *m)
 {
 	unsigned int n, ri = 0, ci = 0;             /* counters */
-	unsigned int cx, cy, cw, ch;                /* client geometry */
-	unsigned int oh, ov, ih, iv;                /* gaps */
+	unsigned int cx, cy, cw, ch, cg;            /* client geometry */
 	unsigned int uw = 0, uh = 0, uc = 0;        /* utilization trackers */
-	unsigned int cols, rows = m->nmaster + 1;
+	unsigned int cols, rows;
 	Client *c;
 
 	for (n = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next), n++);
@@ -2020,29 +2050,18 @@ nrowgrid(Monitor *m)
 		return;
 
 	/* calculate rows and cols, never allow empty rows */
+	rows = m->nmaster = MAX(MIN(m->nmaster, n), 1);
 	if (n < rows)
 		rows = n;
 	cols = n / rows;
 
-	/* check if gaps are to large */
-	if (m->gap > m->wh / (rows + 1))
-		m->gap = m->wh / (rows + 1);
-	if (m->gap > m->ww / (cols + 1))
-		m->gap = m->ww / (cols + 1);
-
-	/* get gaps */
-	if (selmon->pertag->enablegaps[selmon->pertag->curtag] && n > 1) {
-		oh = m->gap;    /* outer horizontal */
-		ov = m->gap;    /* outer vertical */
-		ih = m->gap;    /* inner horizontal */
-		iv = m->gap;    /* inner vertical */
-	} else { oh = ov = ih = iv = 0; }
+	getgap(m, n, &cg, rows, cols);
 
 	/* define first row */
 	uc = cols;
-	cy = m->wy + oh;
-	ch = (m->wh - 2*oh - (ih * (rows - 1))) / rows;
-	uh = ch + ih;
+	cy = m->wy + cg;
+	ch = (m->wh - 2*cg - (cg * (rows - 1))) / rows;
+	uh = ch + cg;
 
 	for (c = nexttiled(m->clients); c; c = nexttiled(c->next), ci++) {
 		if (ci == cols) {
@@ -2053,14 +2072,14 @@ nrowgrid(Monitor *m)
 			/* next row */
 			cols = (n - uc) / (rows - ri);
 			uc += cols;
-			cy = m->wy + uh + oh;
-			ch = ((m->wh - 2*oh) - uh - (ih * (rows - ri - 1))) / (rows - ri);
-			uh += ch + ih;
+			cy = m->wy + uh + cg;
+			ch = ((m->wh - 2*cg) - uh - (cg * (rows - ri - 1))) / (rows - ri);
+			uh += ch + cg;
 		}
 
-		cx = m->wx + uw + ov;
-		cw = ((m->ww - 2*ov) - uw - (iv * (cols - ci - 1))) / (cols - ci);
-		uw += cw + iv;
+		cx = m->wx + uw + cg;
+		cw = ((m->ww - 2*cg) - uw - (cg * (cols - ci - 1))) / (cols - ci);
+		uw += cw + cg;
 
 		resize(c, cx, cy, cw - (2*c->bw), ch - (2*c->bw), 0);
 	}

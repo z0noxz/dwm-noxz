@@ -60,7 +60,7 @@ static const Rule rules[] = { NULL
 
 /* layout(s) */
 static float mfact              = 0.55; /* factor of master area size [0.05..0.95] */
-static int nmaster              = 0;    /* number of clients in master area */
+static int nmaster              = 1;    /* number of clients in master area */
 static int resizehints          = 0;    /* 1 means respect size hints in tiled resizals */
 
 static const Layout layouts[] = {
