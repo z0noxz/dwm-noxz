@@ -59,7 +59,6 @@ static const Rule rules[] = { NULL
 };
 
 /* layout(s) */
-static float mfact              = 0.55; /* factor of master area size [0.05..0.95] */
 static int nmaster              = 1;    /* number of clients in master area */
 static int resizehints          = 0;    /* 1 means respect size hints in tiled resizals */
 
@@ -119,7 +118,6 @@ ResourcePref resources[] = {
 	{ "focusonwheel",               INTEGER,    &focusonwheel },
 	{ "nmaster",                    INTEGER,    &nmaster },
 	{ "resizehints",                INTEGER,    &resizehints },
-	{ "mfact",                      FLOAT,      &mfact },
 };
 
 static const char *dwmfifo = "/tmp/dwm.fifo";
@@ -135,8 +133,6 @@ static Command commands[] = {
 	{ "rotate stack -",     rotatestack,    {.i = -1} },
 	{ "inc nmaster +",      incnmaster,     {.i = +1} },
 	{ "inc nmaster -",      incnmaster,     {.i = -1} },
-	{ "set mfact +",        setmfact,       {.f = +0.05} },
-	{ "set mfact -",        setmfact,       {.f = -0.05} },
 	{ "zoom",               zoom,           {0} },
 	{ "kill client",        killclient,     {0} },
 
